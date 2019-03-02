@@ -44,66 +44,72 @@ public class planeController : MonoBehaviour {
 		updateUI (forwardSpeed, roll, pitch, biplane.position.y );
 	}
 	
-	// Update is called once per frame
+	/* Ну короче логика тут такая, что мы увеличиваем модули трех величин в моменты, когда соответствующие кнопки
+	зажаты. Величины эти: скорость, крен (вращение вокруг продольной оси) и тангаж (вращение вокруг поперечной оси).
+	Рыскание пока не учитывается. Первый блок кода в функции отвечает за отслеживание кнопок и увеличение параметров.
+	Второй блок не дает параметрам разрастаться за диапазоны ( 6 величин min и max, которые задаются из инспектора)
+	и там же идет применение полученых параметров к самолету. В конце функции находится третий блок, который организует
+	затухание двух параметров, отвечающих за вращение. Это сделано для того, чтобы исключить бесконечное вращение. То
+	есть, каждый раз чтобы повернуть нужно нажимать кнопки поворота. Обратный случай со скоростью - она не затухающая.
+	Это значит что можно подержать кнопку тяги какое-то время и после ее отпустить и скорость самолета останется и не
+	будет усменьшаться. В оригинальной игре было сделано аналогично - газ держать постоянно не нужно.
+	 */
+	 /*TODO
+	 * clamp можно не использовать, если дополнить условие там где идет input.getKey - просто добавить && val < maxVal
+	  */
 	void Update () {
+		print(biplane.rotation.eulerAngles);
+		#region block 1 increasing values
+			/* THROTTLE */
+			if(Input.GetKey(KeyCode.W) ){
+				forwardSpeed = increase( forwardSpeed, accelerationRate);
+			}
+			if(Input.GetKey(KeyCode.S) ){
+				forwardSpeed = increase( forwardSpeed, -accelerationRate);
+			}
 
-		/* THROTTLE */
-		if(Input.GetKey(KeyCode.W) ){
-			forwardSpeed = increase( forwardSpeed, accelerationRate);
-		}
-		if(Input.GetKey(KeyCode.S) ){
-			forwardSpeed = increase( forwardSpeed, -accelerationRate);
-		}
+			/* PITCH */
+			if (Input.GetKey (KeyCode.DownArrow)) {
+				//biplane.AddTorque ( transform.InverseTransformDirection(Vector3.left*verticalSensivity) );
+				pitch = increase(pitch, -pitchRate);
+			}
+			if (Input.GetKey (KeyCode.UpArrow)) {
+				//biplane.AddTorque ( transform.InverseTransformDirection( Vector3.right*verticalSensivity ) );
+				pitch = increase(pitch, pitchRate);
+			}
 
-		/* PITCH */
-		if (Input.GetKey (KeyCode.DownArrow)) {
-			//biplane.AddTorque ( transform.InverseTransformDirection(Vector3.left*verticalSensivity) );
-			pitch = increase(pitch, -pitchRate);
-		}
-		if (Input.GetKey (KeyCode.UpArrow)) {
-			//biplane.AddTorque ( transform.InverseTransformDirection( Vector3.right*verticalSensivity ) );
-			pitch = increase(pitch, pitchRate);
-		}
+			/* ROLL */
+			if (Input.GetKey (KeyCode.LeftArrow)) {
+				roll = increase(roll, rollRate);
+			}
 
-		/* ROLL */
-		if (Input.GetKey (KeyCode.LeftArrow)) {
-			roll = increase(roll, rollRate);
-		}
+			if (Input.GetKey (KeyCode.RightArrow)) {
+				roll = increase(roll, -rollRate);
+			}
+		#endregion
+		#region block 2 applying values
+			/* Применение параметров крена*/
+			roll = Mathf.Clamp (roll, rollMin, rollMax);
 
-		if (Input.GetKey (KeyCode.RightArrow)) {
-			roll = increase(roll, -rollRate);
-		}
+			/* Применение параметров тангажа*/
+			pitch = Mathf.Clamp (pitch, pitchMin, pitchMax);
 
-		/*if (Input.GetKeyDown(KeyCode.Mouse0)) {
-			//RaycastHit hit;
-			//Ray ray = Camera.main.ScreenPointToRay(new Vector3(200,200,0.0f ));
-			//Ray ray = new Ray (biplane.position, transform.TransformDirection(Vector3.forward*10) );
-			//bool isHit = Physics.Raycast (ray, out hit, 1000);
-			GameObject lineObject = new GameObject ();
-			LineRenderer line = lineObject.AddComponent<LineRenderer> ();
-			line.SetPosition (0, ray.origin);
-			line.SetPosition (1, ray.direction);
-		}*/
-		
-		/*применение параметров крена*/
-		roll = Mathf.Clamp (roll, rollMin, rollMax);
-
-		/*применение параметров тангажа*/
-		pitch = Mathf.Clamp (pitch, pitchMin, pitchMax);
-
-		currentRotation = ( Quaternion.Euler( 0.0f, 0.0f, roll) * Quaternion.Euler(pitch, 0.0f, 0.0f) ) ;
-		biplane.rotation = biplane.rotation * currentRotation;
-
-		/*применение параметров скорости*/
-		forwardSpeed = Mathf.Clamp (forwardSpeed, forwardSpeedMin, forwardSpeedMax);
-		currentVelocity = transform.TransformDirection(Vector3.forward)* forwardSpeed;
-		biplane.velocity = currentVelocity;
+			/* Вычисление финального кватерниона для применения суммарного вращательного движения к самолету*/
+			currentRotation = ( Quaternion.Euler( 0.0f, 0.0f, roll) * Quaternion.Euler(pitch, 0.0f, 0.0f) ) ;
+			biplane.rotation = biplane.rotation * currentRotation;
+	
+			/* Применение параметров скорости*/
+			forwardSpeed = Mathf.Clamp (forwardSpeed, forwardSpeedMin, forwardSpeedMax);
+			currentVelocity = transform.TransformDirection(Vector3.forward)* forwardSpeed;
+			biplane.velocity = currentVelocity;
+		#endregion
 
 		updateUI (forwardSpeed, roll, pitch, biplane.position.y);
 
-		/*затухание*/
-		roll = fade (roll, rollFadeRate);
-		pitch = fade (pitch, pitchFadeRate);
+		#region fading of values
+			roll = fade (roll, rollFadeRate);
+			pitch = fade (pitch, pitchFadeRate);
+		#endregion
 	}
 
 	void OnCollisionEnter(){
@@ -115,7 +121,11 @@ public class planeController : MonoBehaviour {
 		*/
 	}
 
-	/*Добавляет затухания к величине val со скоростью speed*/
+	/* Добавляет затухания к величине val со скоростью speed.
+	if - если переданное значение уже меньше коэффициента затухания, то просто вернуть ноль - то есть
+	затухнуть полностью. Это сделано чтобы переданное значение не изменило знак.
+	else - знак и модуль значения разделяются, чтобы увеличить только модуль НЕ МЕНЯЯ знака.
+	*/
 	private float fade(float val, float fadeSpeed){
 		if (val > -fadeSpeed && val < fadeSpeed) {
 			return 0.0f;
@@ -124,12 +134,15 @@ public class planeController : MonoBehaviour {
 		}
 	}
 
-	/**/
+	/* Ваще элементарно по-моему - эта функция позволяет наращивать разные величины с их индивидуальной
+	скоростью.
+	*/
 	private float increase(float val, float sensivity){
 		return (val + sensivity);
 	}
 
-	/**/
+	/* Обновляет графический интерфейс. Надо бы передавать сюда массив
+	*/
 	private void updateUI(float vel, float bank, float pitch, float alt){
 		txtVelocity.text = "Velocity: " + vel.ToString ();
 		txtRoll.text = "Roll: " + roll.ToString ();
