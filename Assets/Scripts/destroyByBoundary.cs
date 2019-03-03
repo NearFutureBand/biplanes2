@@ -11,6 +11,7 @@ public class destroyByBoundary : MonoBehaviour {
 			biplane.position = new Vector3 (0.0f, 2.38f, -31.55f);
 			biplane.rotation = Quaternion.identity;
 			biplane.velocity = Vector3.zero;
+			
 
 		} else {
 			Destroy (other.gameObject);

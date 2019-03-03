@@ -3,7 +3,20 @@ using System.Collections.Generic;
 using UnityEngine.UI;
 using UnityEngine;
 
-public class planeController : MonoBehaviour {
+public class PlaneCurrentValues : MonoBehaviour
+{
+	//current parameters
+	protected float forwardSpeed;
+	protected float roll;
+	protected float pitch;
+
+	public void resetPlaneCurrentValues(){
+		forwardSpeed = 0.0f;
+		roll = 0.0f;
+		pitch = 0.0f;
+	}
+}
+public class planeController : PlaneCurrentValues {
 
 	private Rigidbody biplane;
 
@@ -21,13 +34,7 @@ public class planeController : MonoBehaviour {
 	public float pitchMin = -10.0f;
 	public float pitchMax = 10.0f;
 	public float pitchFadeRate = 0.5f;
-
-	/* Current values */
-	private Vector3 currentVelocity = Vector3.zero;
-	private Quaternion currentRotation = Quaternion.identity;
-	private float forwardSpeed;
-	private float roll;
-	private float pitch;
+	private Vector3 defaultPosition;
 
 	/* UI */
 	public Text txtVelocity;
@@ -40,6 +47,7 @@ public class planeController : MonoBehaviour {
 		roll = 0.0f;
 		pitch = 0.0f;
 		biplane = gameObject.GetComponent<Rigidbody>();
+		defaultPosition = biplane.position;
 
 		updateUI (forwardSpeed, roll, pitch, biplane.position.y );
 	}
@@ -47,61 +55,57 @@ public class planeController : MonoBehaviour {
 	/* Ну короче логика тут такая, что мы увеличиваем модули трех величин в моменты, когда соответствующие кнопки
 	зажаты. Величины эти: скорость, крен (вращение вокруг продольной оси) и тангаж (вращение вокруг поперечной оси).
 	Рыскание пока не учитывается. Первый блок кода в функции отвечает за отслеживание кнопок и увеличение параметров.
-	Второй блок не дает параметрам разрастаться за диапазоны ( 6 величин min и max, которые задаются из инспектора)
+	Здесь же параметры ограничиваются по росту ( 6 величин min и max, которые задаются из инспектора)
 	и там же идет применение полученых параметров к самолету. В конце функции находится третий блок, который организует
 	затухание двух параметров, отвечающих за вращение. Это сделано для того, чтобы исключить бесконечное вращение. То
 	есть, каждый раз чтобы повернуть нужно нажимать кнопки поворота. Обратный случай со скоростью - она не затухающая.
 	Это значит что можно подержать кнопку тяги какое-то время и после ее отпустить и скорость самолета останется и не
 	будет усменьшаться. В оригинальной игре было сделано аналогично - газ держать постоянно не нужно.
 	 */
-	 /*TODO
-	 * clamp можно не использовать, если дополнить условие там где идет input.getKey - просто добавить && val < maxVal
+	 /* TODO
+	 * 
+	 * 
 	  */
 	void Update () {
-		print(biplane.rotation.eulerAngles);
 		#region block 1 increasing values
 			/* THROTTLE */
-			if(Input.GetKey(KeyCode.W) ){
+			if(Input.GetKey(KeyCode.W) && forwardSpeed < forwardSpeedMax ){
 				forwardSpeed = increase( forwardSpeed, accelerationRate);
 			}
-			if(Input.GetKey(KeyCode.S) ){
+			if(Input.GetKey(KeyCode.S) && forwardSpeed > forwardSpeedMin ){
 				forwardSpeed = increase( forwardSpeed, -accelerationRate);
 			}
 
 			/* PITCH */
-			if (Input.GetKey (KeyCode.DownArrow)) {
+			if (Input.GetKey (KeyCode.DownArrow) && pitch > pitchMin ) {
 				//biplane.AddTorque ( transform.InverseTransformDirection(Vector3.left*verticalSensivity) );
 				pitch = increase(pitch, -pitchRate);
 			}
-			if (Input.GetKey (KeyCode.UpArrow)) {
+			if (Input.GetKey (KeyCode.UpArrow) && pitch < pitchMax ) {
 				//biplane.AddTorque ( transform.InverseTransformDirection( Vector3.right*verticalSensivity ) );
 				pitch = increase(pitch, pitchRate);
 			}
 
 			/* ROLL */
-			if (Input.GetKey (KeyCode.LeftArrow)) {
+			if (Input.GetKey (KeyCode.LeftArrow) && roll < rollMax) {
 				roll = increase(roll, rollRate);
 			}
 
-			if (Input.GetKey (KeyCode.RightArrow)) {
+			if (Input.GetKey (KeyCode.RightArrow) && roll > rollMin) {
 				roll = increase(roll, -rollRate);
 			}
 		#endregion
+
+			if(Input.GetKey( KeyCode.H)) {
+				//biplane.rotation = Quaternion.identity;
+				biplane.angularVelocity = Vector3.zero;
+			}
 		#region block 2 applying values
-			/* Применение параметров крена*/
-			roll = Mathf.Clamp (roll, rollMin, rollMax);
-
-			/* Применение параметров тангажа*/
-			pitch = Mathf.Clamp (pitch, pitchMin, pitchMax);
-
 			/* Вычисление финального кватерниона для применения суммарного вращательного движения к самолету*/
-			currentRotation = ( Quaternion.Euler( 0.0f, 0.0f, roll) * Quaternion.Euler(pitch, 0.0f, 0.0f) ) ;
-			biplane.rotation = biplane.rotation * currentRotation;
-	
-			/* Применение параметров скорости*/
-			forwardSpeed = Mathf.Clamp (forwardSpeed, forwardSpeedMin, forwardSpeedMax);
-			currentVelocity = transform.TransformDirection(Vector3.forward)* forwardSpeed;
-			biplane.velocity = currentVelocity;
+			biplane.angularVelocity = biplane.transform.right * pitch + biplane.transform.forward * roll;
+
+			/* Применение параметров скорости */
+			biplane.velocity = biplane.transform.forward * forwardSpeed;
 		#endregion
 
 		updateUI (forwardSpeed, roll, pitch, biplane.position.y);
@@ -110,6 +114,9 @@ public class planeController : MonoBehaviour {
 			roll = fade (roll, rollFadeRate);
 			pitch = fade (pitch, pitchFadeRate);
 		#endregion
+		if( Input.GetKey( KeyCode.R )) {
+			setDefaultValues();
+		}
 	}
 
 	void OnCollisionEnter(){
@@ -152,11 +159,10 @@ public class planeController : MonoBehaviour {
 
 	/*When the plain get destroyed we need to reset all its parameters to default*/
 	public void setDefaultValues() {
-		biplane.position = new Vector3 (0.0f, 2.38f, -31.55f);
-		currentVelocity = Vector3.zero;
-		currentRotation = Quaternion.identity;
-		forwardSpeed = 0.0f;
-		roll = 0.0f;
-		pitch = 0.0f;
+		biplane.position = defaultPosition;
+		biplane.rotation = Quaternion.identity;
+		biplane.angularVelocity = Vector3.zero;
+		biplane.velocity = Vector3.zero;
+		resetPlaneCurrentValues();
 	}
 }
