@@ -757,7 +757,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 400014, guid: 28e9da4c5d696fe4f958ded1de8a6993, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 2.38
+      value: 4.56
       objectReference: {fileID: 0}
     - target: {fileID: 400014, guid: 28e9da4c5d696fe4f958ded1de8a6993, type: 3}
       propertyPath: m_LocalPosition.z
@@ -965,6 +965,7 @@ MonoBehaviour:
   pitchMin: -10
   pitchMax: 10
   pitchFadeRate: 0.5
+  fallSpeed: 10
   txtVelocity: {fileID: 1746630489}
   txtRoll: {fileID: 268726875}
   txtPitch: {fileID: 158110435}

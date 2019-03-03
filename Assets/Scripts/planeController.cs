@@ -34,6 +34,7 @@ public class planeController : PlaneCurrentValues {
 	public float pitchMin = -10.0f;
 	public float pitchMax = 10.0f;
 	public float pitchFadeRate = 0.5f;
+	public float fallSpeed = 20.0f;
 	private Vector3 defaultPosition;
 
 	/* UI */
@@ -63,7 +64,7 @@ public class planeController : PlaneCurrentValues {
 	будет усменьшаться. В оригинальной игре было сделано аналогично - газ держать постоянно не нужно.
 	 */
 	 /* TODO
-	 * 
+	 * Управление скоростью через addForce
 	 * 
 	  */
 	void Update () {
@@ -95,17 +96,13 @@ public class planeController : PlaneCurrentValues {
 				roll = increase(roll, -rollRate);
 			}
 		#endregion
-
-			if(Input.GetKey( KeyCode.H)) {
-				//biplane.rotation = Quaternion.identity;
-				biplane.angularVelocity = Vector3.zero;
-			}
 		#region block 2 applying values
 			/* Вычисление финального кватерниона для применения суммарного вращательного движения к самолету*/
 			biplane.angularVelocity = biplane.transform.right * pitch + biplane.transform.forward * roll;
 
+
 			/* Применение параметров скорости */
-			biplane.velocity = biplane.transform.forward * forwardSpeed;
+			biplane.velocity = biplane.transform.forward * forwardSpeed + Vector3.down * fallSpeed;
 		#endregion
 
 		updateUI (forwardSpeed, roll, pitch, biplane.position.y);
@@ -114,6 +111,7 @@ public class planeController : PlaneCurrentValues {
 			roll = fade (roll, rollFadeRate);
 			pitch = fade (pitch, pitchFadeRate);
 		#endregion
+
 		if( Input.GetKey( KeyCode.R )) {
 			setDefaultValues();
 		}
