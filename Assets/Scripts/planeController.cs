@@ -6,12 +6,12 @@ using UnityEngine;
 public class PlaneCurrentValues : MonoBehaviour
 {
 	//current parameters
-	protected float forwardSpeed;
+	protected float throttle;
 	protected float roll;
 	protected float pitch;
 
 	public void resetPlaneCurrentValues(){
-		forwardSpeed = 0.0f;
+		throttle = 0.0f;
 		roll = 0.0f;
 		pitch = 0.0f;
 	}
@@ -22,8 +22,8 @@ public class planeController : PlaneCurrentValues {
 
 	public float accelerationRate = 1.0f;
 	public float brakeRate = 0.5f;
-	public float forwardSpeedMin = -20.0f;
-	public float forwardSpeedMax = 30.0f;
+	public float throttleMin = 0.0f;
+	public float throttleMax = 30.0f;
 
 	public float rollRate = 0.55f;
 	public float rollMin = -10.0f;
@@ -38,19 +38,20 @@ public class planeController : PlaneCurrentValues {
 	private Vector3 defaultPosition;
 
 	/* UI */
+	public Text txtThrottle;
 	public Text txtVelocity;
 	public Text txtRoll;
 	public Text txtPitch;
 	public Text txtAltitude;
 
 	void Start () {
-		forwardSpeed = 0.0f;
+		throttle = 0.0f;
 		roll = 0.0f;
 		pitch = 0.0f;
 		biplane = gameObject.GetComponent<Rigidbody>();
 		defaultPosition = biplane.position;
 
-		updateUI (forwardSpeed, roll, pitch, biplane.position.y );
+		updateUI (throttle, biplane.velocity.z, roll, pitch, biplane.position.y );
 	}
 	
 	/* Ну короче логика тут такая, что мы увеличиваем модули трех величин в моменты, когда соответствующие кнопки
@@ -68,53 +69,55 @@ public class planeController : PlaneCurrentValues {
 	 * 
 	  */
 	void Update () {
-		#region block 1 increasing values
-			/* THROTTLE */
-			if(Input.GetKey(KeyCode.W) && forwardSpeed < forwardSpeedMax ){
-				forwardSpeed = increase( forwardSpeed, accelerationRate);
-			}
-			if(Input.GetKey(KeyCode.S) && forwardSpeed > forwardSpeedMin ){
-				forwardSpeed = increase( forwardSpeed, -accelerationRate);
-			}
-
-			/* PITCH */
-			if (Input.GetKey (KeyCode.DownArrow) && pitch > pitchMin ) {
-				//biplane.AddTorque ( transform.InverseTransformDirection(Vector3.left*verticalSensivity) );
-				pitch = increase(pitch, -pitchRate);
-			}
-			if (Input.GetKey (KeyCode.UpArrow) && pitch < pitchMax ) {
-				//biplane.AddTorque ( transform.InverseTransformDirection( Vector3.right*verticalSensivity ) );
-				pitch = increase(pitch, pitchRate);
-			}
-
-			/* ROLL */
-			if (Input.GetKey (KeyCode.LeftArrow) && roll < rollMax) {
-				roll = increase(roll, rollRate);
-			}
-
-			if (Input.GetKey (KeyCode.RightArrow) && roll > rollMin) {
-				roll = increase(roll, -rollRate);
-			}
-		#endregion
-		#region block 2 applying values
-			/* Вычисление финального кватерниона для применения суммарного вращательного движения к самолету*/
-			biplane.angularVelocity = biplane.transform.right * pitch + biplane.transform.forward * roll;
-
-
-			/* Применение параметров скорости */
-			biplane.velocity = biplane.transform.forward * forwardSpeed + Vector3.down * fallSpeed;
-		#endregion
-
-		updateUI (forwardSpeed, roll, pitch, biplane.position.y);
-
-		#region fading of values
-			roll = fade (roll, rollFadeRate);
-			pitch = fade (pitch, pitchFadeRate);
-		#endregion
+		updateUI (throttle, biplane.velocity.z ,roll, pitch, biplane.position.y);
 
 		if( Input.GetKey( KeyCode.R )) {
 			setDefaultValues();
 		}
+	}
+
+	void FixedUpdate () {
+		/* THROTTLE */
+		/* if(Input.GetKey(KeyCode.W) && throttle < throttleMax){
+			throttle = increase(throttle, accelerationRate);
+			biplane.AddForce( biplane.transform.forward * throttle, ForceMode.Impulse);
+		}
+		if(Input.GetKey(KeyCode.S) && throttle >= throttleMin ){
+			throttle = increase( throttle, -accelerationRate);
+			biplane.AddForce( -biplane.transform.forward * throttle, ForceMode.Impulse);
+		}*/
+
+		/* THROTTLE */
+		if(Input.GetKey(KeyCode.W) && throttle < throttleMax ){
+			throttle = increase( throttle, accelerationRate);
+		}
+		if(Input.GetKey(KeyCode.S) && throttle > throttleMin ){
+			throttle = increase( throttle, -accelerationRate);
+		}
+
+		/* PITCH */
+		if (Input.GetKey (KeyCode.DownArrow) && pitch > pitchMin ) {
+			//biplane.AddTorque ( transform.InverseTransformDirection(Vector3.left*verticalSensivity) );
+			pitch = increase(pitch, -pitchRate);
+		}
+		if (Input.GetKey (KeyCode.UpArrow) && pitch < pitchMax ) {
+			//biplane.AddTorque ( transform.InverseTransformDirection( Vector3.right*verticalSensivity ) );
+			pitch = increase(pitch, pitchRate);
+		}
+		/* ROLL */
+		if (Input.GetKey (KeyCode.LeftArrow) && roll < rollMax) {
+			roll = increase(roll, rollRate);
+		}
+		if (Input.GetKey (KeyCode.RightArrow) && roll > rollMin) {
+			roll = increase(roll, -rollRate);
+		}
+
+		/* Вычисление финального кватерниона для применения суммарного вращательного движения к самолету*/
+		biplane.angularVelocity = biplane.transform.right * pitch + biplane.transform.forward * roll;
+		biplane.velocity = biplane.transform.forward * throttle + Vector3.down * fallSpeed;
+
+		roll = fade (roll, rollFadeRate);
+		pitch = fade (pitch, pitchFadeRate);
 	}
 
 	void OnCollisionEnter(){
@@ -148,11 +151,12 @@ public class planeController : PlaneCurrentValues {
 
 	/* Обновляет графический интерфейс. Надо бы передавать сюда массив
 	*/
-	private void updateUI(float vel, float bank, float pitch, float alt){
-		txtVelocity.text = "Velocity: " + vel.ToString ();
-		txtRoll.text = "Roll: " + roll.ToString ();
-		txtPitch.text = "Pitch: " + pitch.ToString ();
-		txtAltitude.text = "Alt: " + alt;
+	private void updateUI(float thr, float vel, float bank, float pitch, float alt){
+		txtThrottle.text = "Throttle: " + thr.ToString();
+		txtVelocity.text = "Velocity: " + vel.ToString();
+		txtRoll.text = "Roll: " + roll.ToString();
+		txtPitch.text = "Pitch: " + pitch.ToString();
+		txtAltitude.text = "Alt: " + alt.ToString();
  	}
 
 	/*When the plain get destroyed we need to reset all its parameters to default*/
